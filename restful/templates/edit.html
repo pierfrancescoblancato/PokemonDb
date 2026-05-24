@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Edit Pokémon</title>
+</head>
+<body>
+    <h1>Edit {{ creature.name }}</h1>
+    <form method="POST">
+        <label>Height:</label>
+        <input type="number" name="height" value="{{ creature.height }}" required><br>
+        <label>Weight:</label>
+        <input type="number" name="weight" value="{{ creature.weight }}" required><br>
+        <label>Types (JSON array):</label><br>
+        <textarea name="types" rows="2" cols="40">{{ current_types }}</textarea><br>
+        <label>Stats (JSON object):</label><br>
+        <textarea name="stats" rows="4" cols="40">{{ current_stats }}</textarea><br>
+        <button type="submit">Save changes</button>
+    </form>
+    <a href="{{ url_for('index') }}">Cancel</a>
+</body>
+</html>
