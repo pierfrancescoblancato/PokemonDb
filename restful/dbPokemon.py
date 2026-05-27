@@ -1,9 +1,11 @@
+#importazione 
 import json
 import requests
 from flask import Flask, render_template, request, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 
+#inizializzazione
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///pokemon.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -19,22 +21,31 @@ class Creature(db.Model):
     types = db.Column(db.Text(300), nullable=False)
     stats = db.Column(db.Text(300), nullable=False)
 
+#chiamata api
 class PokemonReader:
-    BASE_URL = "https://pokeapi.co/api/v2/pokemon"
-
     def fetch_as_dict(self, name_or_id: str):
-        url = f"{self.BASE_URL}/{name_or_id}"
+        url = f"https://pokeapi.co/api/v2/pokemon/{name_or_id}"
         try:
             response = requests.get(url)
             if response.status_code == 200:
                 data = response.json()
-                return {
+                
+                types = []
+                for type in data['types']:
+                    types.append(type)
+                stats = {}
+                for stats_item in data['stats']:
+                    nameStats = stats_item['stat']['name']
+                    value =  stats_item['stat']
+                    stats[nameStats] = value
+                    
+            return {
                     'id': data['id'],
                     'name': data['name'],
                     'height': data['height'],
                     'weight': data['weight'],
-                    'types': [t['type']['name'] for t in data['types']],
-                    'stats': {s['stat']['name']: s['base_stat'] for s in data['stats']}
+                    'types': types,
+                    'stats': stats
                 }
         except requests.exceptions.ConnectionError:
             print("Error: unable to connect. Check your internet connection.")
@@ -48,6 +59,7 @@ class PokemonReader:
             print(f"Error: unexpected API response structure — missing key: {e}")
         return None
 
+#rotte
 @app.route('/')
 def index():
     creatures = Creature.query.all()
@@ -55,70 +67,50 @@ def index():
 
 @app.route('/add', methods=['GET', 'POST'])
 def add_pokemon():
-    error = None
     if request.method == 'POST':
-        name = request.form.get('name', '').strip().lower()
-        if not name:
-            error = "Please enter a Pokémon name."
-            return render_template('add.html', error=error)
-
+        name = request.form['name'].strip().lower()
         reader = PokemonReader()
         data = reader.fetch_as_dict(name)
-        if data is None:
-            error = f"Pokémon '{name}' not found or network error."
-            return render_template('add.html', error=error)
-
-        if Creature.query.get(data['id']):
-            error = f"Pokémon '{data['name']}' (ID #{data['id']}) already exists."
-            return render_template('add.html', error=error)
-
-        new_creature = Creature(
-            id=data['id'],
-            name=data['name'],
-            height=data['height'],
-            weight=data['weight'],
-            types=json.dumps(data['types']),
-            stats=json.dumps(data['stats'])
-        )
-        db.session.add(new_creature)
-        db.session.commit()
-        return redirect(url_for('index'))
-
-    return render_template('add.html', error=error)
+        
+        if data:
+            new_creature = Creature(
+                id=data['id'],
+                name=data['name'],
+                height=data['height'],
+                weight=data['weight'],
+                types=json.dumps(data['types']),
+                stats=json.dumps(data['stats'])
+            )
+            db.session.add(new_creature)
+            db.session.commit()
+            return redirect(url_for('index'))
+            
+    return render_template('add.html', creature=None)
 
 @app.route('/edit/<int:id>', methods=['GET', 'POST'])
 def edit_pokemon(id):
     creature = Creature.query.get_or_404(id)
-    error = None
     if request.method == 'POST':
-        try:
-            creature.height = int(request.form['height'])
-            creature.weight = int(request.form['weight'])
-            if request.form.get('types'):
-                json.loads(request.form['types']) 
-                creature.types = request.form['types']
-            if request.form.get('stats'):
-                json.loads(request.form['stats'])
-                creature.stats = request.form['stats']
-            db.session.commit()
-            return redirect(url_for('index'))
-        except (ValueError, json.JSONDecodeError) as e:
-            error = f"Invalid data: {e}"
-
-    current_types = json.dumps(json.loads(creature.types), indent=2)
-    current_stats = json.dumps(json.loads(creature.stats), indent=2)
-    return render_template('edit.html', creature=creature,
-                           current_types=current_types,
-                           current_stats=current_stats,
-                           error=error)
+        creature.height = int(request.form['height'])
+        creature.weight = int(request.form['weight'])
+        creature.types = request.form.get('types', '')
+        creature.stats = request.form.get('stats', '')
+        db.session.commit()
+        return redirect(url_for('index'))
+        
+    return render_template('edit.html', creature=creature)
 
 @app.route('/delete/<int:id>', methods=['POST'])
 def delete_pokemon(id):
     creature = Creature.query.get_or_404(id)
     db.session.delete(creature)
     db.session.commit()
-
     return redirect(url_for('index'))
+
+@app.route('/pokemon/<int:id>')
+def view_pokemon(id):
+    creature = Creature.query.get_or_404(id)
+    return render_template('pokemon.html', creature=creature)
 
 @app.errorhandler(404)
 def page_not_found(error):
