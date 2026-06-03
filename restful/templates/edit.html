@@ -12,9 +12,9 @@
         <label>Weight:</label>
         <input type="number" name="weight" value="{{ creature.weight }}" required><br>
         <label>Types:</label><br>
-        <textarea name="types" rows="2" cols="40" value="{{ creature.types }}">{{ current_types }}</textarea><br>
+        <textarea name="types" rows="2" cols="40">{{ current_types }}</textarea><br>
         <label>Stats:</label><br>
-        <textarea name="stats" rows="4" cols="40" value="{{ creature.stats }}">{{ current_stats }}</textarea><br>
+        <textarea name="stats" rows="4" cols="40" >{{ current_stats }}</textarea><br>
         <button type="submit">Save changes</button>
     </form>
     <a href="{{ url_for('index') }}">Cancel</a>
